@@ -1,0 +1,6 @@
+# 参加登録フォームの定義。questions は ops/form/questions_common.yaml の id を並べる。
+# 大会だけの質問は {id, type, label, options, help} をそのまま書く。
+title:
+  ja: 人狼知能大会2026国際大会 参加登録フォーム
+  en: AIWolf Competition 2026 International Tournament Registration Form
+questions: [rep_name, rep_email, rep_org, members, team, rounds, tracks, public_name, slack_emails]

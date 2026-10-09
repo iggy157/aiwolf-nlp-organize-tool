@@ -1,0 +1,18 @@
+# ---- {{T}} ({{LABEL}}) : port {{PORT}}, {{TEAMS}} teams, {{GAMES}} games ----
+plan-{{T}}:
+	python3 plan_game_count.py --config {{T}}.yml --teams-yml teams.yml --track track_{{T}} --min-per-team {{MIN}} --max-per-team {{MAX}}
+optimize-{{T}}:
+	python3 generate_match_optimizer.py --config {{T}}.yml --teams-yml teams.yml --track track_{{T}} --output log/match_optimizer_{{T}}.json
+run-{{T}}:
+	@mkdir -p log; nohup $(BIN) -c ./{{T}}.yml >> log_{{T}}.log 2>&1 & echo "{{T}}: pid=$$!"
+run-pre-{{T}}:
+	@mkdir -p log; nohup $(BIN) -c ./{{T}}_pre.yml >> log_{{T}}_pre.log 2>&1 & echo "{{T}} (pre): pid=$$!"
+status-{{T}}:
+	@ps aux | grep "[/]{{T}}.yml" || echo "{{T}}: not running"; ss -tln | grep ":{{PORT}} " || echo "port {{PORT}}: free"
+	@[ -f log/match_optimizer_{{T}}.json ] && echo "ended: $$(jq '.ended_matches | length' log/match_optimizer_{{T}}.json) / {{GAMES}}  remaining(w=1): $$(jq '[.scheduled_matches[] | select(.weight==1)] | length' log/match_optimizer_{{T}}.json)" || true
+stop-{{T}}:
+	-pkill -f "[/]{{T}}.yml"; sleep 3; ps aux | grep "[/]{{T}}.yml" || echo "{{T}}: stopped"
+stop-pre-{{T}}:
+	-pkill -f "[/]{{T}}_pre.yml"; sleep 3; ps aux | grep "[/]{{T}}_pre.yml" || echo "{{T}} (pre): stopped"
+analyze-{{T}}:
+	$(BIN) -c ./{{T}}.yml -a

@@ -1,0 +1,25 @@
+# ops server render が生成した Makefile（大会 {{CID}} / 回 {{ROUND}}）。手で直すなら ops 側の雛形を。
+# 使い方: make plan-<track> optimize-<track> run-<track> status-<track> stop-<track> analyze-<track> / run-pre-<track> stop-pre-<track> / live
+SHELL := /bin/bash
+BIN   := ./aiwolf-nlp-server-linux-amd64
+SCORE := $(HOME)/aiwolf-nlp-calculate-score
+TRACKS := {{TRACKS}}
+
+.PHONY: help plan-all optimize-all live check
+help:
+	@echo "tracks: $(TRACKS)"; echo "targets: plan-<t> optimize-<t> run-<t> status-<t> stop-<t> analyze-<t> run-pre-<t> stop-pre-<t> plan-all optimize-all live check"
+
+plan-all: $(addprefix plan-,$(TRACKS))
+optimize-all: $(addprefix optimize-,$(TRACKS))
+
+# 起動前チェック: ポートが空いていて、公開ディレクトリが書けること
+check:
+	@for t in $(TRACKS); do p=$$(grep -m1 "port:" $$t.yml | awk '{print $$2}'); ss -tln | grep -q ":$$p " && echo "NG: port $$p in use ($$t)" || echo "OK: port $$p free ($$t)"; done
+	@for d in $$(grep -h "output_dir: /var/www" *.yml | awk '{print $$2}' | sort -u); do [ -d "$$d" ] && [ -w "$$d" ] && echo "OK: $$d" || echo "NG: $$d (mkdir -p で作る)"; done
+
+# calculate-score の配信（全トラック分の tmux ウィンドウ）
+live:
+	@[ -x $(SCORE)/scripts/start_live.sh ] || { echo "$(SCORE) がありません: git clone https://github.com/aiwolfdial/aiwolf-nlp-calculate-score.git $(SCORE) && (cd $(SCORE) && uv sync)"; exit 1; }
+	$(SCORE)/scripts/start_live.sh $(addsuffix .yml,$(TRACKS))
+
+{{TRACK_RULES}}

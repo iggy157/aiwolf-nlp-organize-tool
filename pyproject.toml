@@ -1,0 +1,6 @@
+[project]
+name = "aiwolf-nlp-ops"
+version = "0.1.0"
+description = "人狼知能コンテスト（自然言語部門）の運営用ツール"
+requires-python = ">=3.11"
+dependencies = ["pyyaml>=6", "google-auth>=2", "google-api-python-client>=2"]

@@ -1,0 +1,71 @@
+# 参加登録フォームの定番の質問。大会の form.yaml から id で参照する。
+# type: text | paragraph | radio | checkbox | dropdown
+# 国際大会（language: en）では「英語 (日本語)」の併記、国内大会では日本語だけで出す。
+# options は {ja, en} の対。tracks / rounds は contest.yaml から自動で選択肢を作る特別な type。
+questions:
+  - id: rep_name
+    type: text
+    required: true
+    label: {ja: 代表者氏名, en: Name of Representative}
+  - id: rep_email
+    type: text
+    required: true
+    label: {ja: 代表者メールアドレス, en: Email Address of Representative}
+  - id: rep_org
+    type: text
+    required: true
+    label: {ja: 代表者所属組織名, en: Organization Name of Representative}
+  - id: members
+    type: text
+    label: {ja: 他のチームメンバー, en: Names of Other Team Members}
+    help:
+      ja: 代表者を除いたチームメンバーの氏名/メールアドレス/所属組織名をスラッシュ区切りで入力してください
+      en: "Please enter the full names, email addresses, and organization names of the team members (excluding the representative), separated by slashes."
+  - id: team
+    type: text
+    required: true
+    label: {ja: チーム名, en: Team Name}
+    help:
+      ja: |-
+        チーム名は半角英数字記号でお願いします。
+        また、末尾に数字が付くものは避けてください。
+
+        ・例
+        - kanolab
+        - word2vec
+
+        ・禁止例
+        - team404 (末尾が数字)
+        - あしたからがんばる(半角英数字記号のみでない)
+      en: |-
+        Please enter your team name using only half-width alphanumeric characters and symbols.
+        Do not use team names that end with a number.
+
+        Examples (Allowed):
+        - kanolab
+        - word2vec
+
+        Examples (Not Allowed):
+        - team404 (ends with a number)
+        - あしたからがんばる (contains non-alphanumeric characters)
+  - id: rounds
+    type: rounds            # contest.yaml の rounds が 2 つ以上のときだけ出る。選択肢は自動
+    required: true
+    label: {ja: 参加する回, en: Round(s) to Participate In}
+  - id: tracks
+    type: tracks            # 選択肢は contest.yaml の tracks から自動（複数選択）
+    required: true
+    label: {ja: 参加するゲーム, en: Game to Participate In}
+  - id: public_name
+    type: text
+    label: {ja: 公開用の氏名・所属, en: Public Name / Affiliation}
+    help:
+      ja: 氏名・所属の公開を希望する場合に、公開用の表記を入力してください（空欄の場合はチーム名のみを使用します）
+      en: "If you agree to have your name and affiliation published, enter them as they should appear (leave blank to use the team name only)."
+  - id: slack_emails
+    type: paragraph
+    required: true
+    label: {ja: Slack登録メールアドレス（複数可）, en: Slack Registration Email Address(es)}
+    help:
+      ja: １行ずつメールアドレスを入力してください
+      en: Please enter one email address per line

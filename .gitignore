@@ -1,0 +1,8 @@
+__pycache__/
+.venv/
+*.pyc
+# clasp がローカルに作るもの（スクリプト ID は ops/config.yaml に書く）
+ops/form/gas/.clasp.json
+ops/form/gas/Code.js
+# render の出力（大会ごとに生成される。サーバへ配置したら不要）
+contests/*/server/*/log/
