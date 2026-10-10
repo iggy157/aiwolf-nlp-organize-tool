@@ -59,6 +59,7 @@ function doGet(e) {
   try {
     if (p.fn === 'ping') out = { ok: true, result: ping() };
     else if (p.fn === 'createForm') out = { ok: true, result: JSON.parse(createFormFor(p.cid)) };
+    else if (p.fn === 'sharePublic') { DriveApp.getFileById(p.file_id).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); out = { ok: true, result: { public: true } }; }
     else if (p.fn === 'share') { SpreadsheetApp.openById(p.file_id).addViewer(p.email); out = { ok: true, result: { shared: p.email } }; }
     else out = { ok: false, error: 'unknown fn' };
   } catch (err) { out = { ok: false, error: String(err) }; }
