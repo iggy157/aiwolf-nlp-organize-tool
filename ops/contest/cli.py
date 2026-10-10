@@ -58,7 +58,7 @@ def cmd_layout(a):
     else:
         ja, en = grids.get(TAB_JA, []), grids.get(TAB_EN, [])
         contests = {cid: SI.items_to_contest(cid, SI.column_items(ja, cid), SI.column_items(en, cid), catalog) for cid in SI.grid_columns(ja)}
-    tabs = build_tabs(contests, grids.get(TAB_JA), grids.get(TAB_EN))
+    tabs = build_tabs(contests, grids.get(TAB_JA), grids.get(TAB_EN), from_sheet=not a.from_files)
     share = []
     sa = load_secrets().get("GOOGLE_SERVICE_ACCOUNT_JSON")
     if sa and Path(sa).exists(): share.append(json.loads(Path(sa).read_text())["client_email"])

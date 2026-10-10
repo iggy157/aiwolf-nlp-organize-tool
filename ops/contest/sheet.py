@@ -39,19 +39,19 @@ def template(n_rounds=MIN_ROUNDS, n_sponsors=MIN_SPONSORS):
         else: ja.append(R(q["label"], q["key"], desc, q["type"], opts, bool(q.get("required")), use=q.get("use", "サイト")))
     H(ja, "■ 開催トラック", "実施するトラックにチェック。トラック自体の追加は「トラック」タブ")
     for t in tracks:
-        ja.append(R(f"{t['name']}（{t['id']}）", f"tracks_enabled.{t['id']}", f"[毎回変える] 人数 {t['size']}、方式 {t['mode']}", "bool", indent=1, use="サイト,フォーム,サーバ"))
+        ja.append(R(f"{t['name']}（{t['id']}）", f"tracks_enabled.{t['id']}", f"[毎回変える] 人数 {t['size']}、方式 {t['mode']}", "bool", indent=1, use="サイト＊,フォーム＊,サーバ＊"))
     rc = {c["key"]: c for c in f["rounds"]["columns"]}
     for i in range(1, n_rounds + 1):
         req = i == 1
         H(ja, f"■ 回 {i}", "回が 1 つの大会は回 1 だけ埋める"); H(en, f"■ 回 {i}（英語）")
-        ja.append(R(rc["id"]["label"], f"rounds[{i}].id", "[規則で決まる] " + rc["id"]["desc"], required=req, indent=1, use="サイト,サーバ,フォーム"))
+        ja.append(R(rc["id"]["label"], f"rounds[{i}].id", "[規則で決まる] " + rc["id"]["desc"], required=req, indent=1, use=("サイト＊,サーバ＊,フォーム＊" if req else "サイト,サーバ,フォーム")))
         ja.append(R(rc["name"]["label"], f"rounds[{i}].name", "[たまに変える] " + rc["name"]["desc"], indent=1, use="サイト,フォーム"))
         en.append(R(rc["name_en"]["label"], f"rounds[{i}].name_en", rc["name_en"]["desc"], indent=1, use="サイト,フォーム"))
-        ja.append(R(rc["public_name"]["label"], f"rounds[{i}].public_name", "[毎回変える] " + rc["public_name"]["desc"], required=req, indent=1, use="サーバ"))
-        ja.append(R(rc["tracks"]["label"], f"rounds[{i}].tracks", "[たまに変える] 空なら開催トラック全部。この回だけ絞るときに id をカンマ区切りで", "list", indent=1, use="サイト,サーバ,フォーム"))
+        ja.append(R(rc["public_name"]["label"], f"rounds[{i}].public_name", "[毎回変える] " + rc["public_name"]["desc"], required=req, indent=1, use=("サーバ＊" if req else "サーバ")))
         H(ja, f"■ 回 {i} の日程", "使う種類だけ埋める。日付は 2026/07/04、期間は 2026/10/17〜10/21、「〜」付きは 2026/07/06〜"); H(en, f"■ 回 {i} の日程（英語の表示文）")
         for k, kl in mk.items():
-            ja.append(R(f"{kl} 日付", f"rounds[{i}].milestones[{k}].date", "[毎回変える] 空ならこの日程は無し", required=(req and k in ("registration", "main_start")), indent=1, use="サイト,通知"))
+            ja.append(R(f"{kl} 日付", f"rounds[{i}].milestones[{k}].date", "[毎回変える] 空ならこの日程は無し", required=(req and k in ("registration", "main_start")), indent=1,
+                      use=("サイト＊,通知" if (req and k in ("registration", "main_start")) else "サイト,通知")))
             ja.append(R(f"{kl} 表示文", f"rounds[{i}].milestones[{k}].name", "[たまに変える] サイトの日程に出る文", indent=1, use="サイト"))
             en.append(R(f"{kl} 表示文（英語）", f"rounds[{i}].milestones[{k}].name_en", "英語ページの日程に出る文", indent=1, use="サイト"))
     H(ja, "■ スポンサー", "無ければ空のまま"); H(en, "■ スポンサー（英語）")
@@ -106,6 +106,21 @@ def fill(rows, contests: dict):
         r["values"] = {cid: ("" if r["header"] else lookup(c, r["key"], r["type"])) for cid, c in contests.items()}
     return rows
 
+def raw_values(grid) -> dict:
+    """シートの今の値を {キー: {大会 id: セルの値}} にする（作り直しで値を落とさないため）"""
+    hdr = [str(x).strip() for x in (grid[0] if grid else [])]; out = {}
+    for g in (grid or [])[1:]:
+        g = list(g) + [""] * len(hdr); key = str(g[1]).strip()
+        if not key or key == "extra.": continue
+        out[key] = {cid: g[j] for j, cid in enumerate(hdr) if j >= FIRST_COL - 1 and cid}
+    return out
+
+def fill_raw(rows, raw: dict, col_ids):
+    for r in rows:
+        r["values"] = {} if r["header"] else {cid: raw.get(r["key"], {}).get(cid, "") for cid in col_ids}
+        if r["type"] == "bool": r["values"] = {cid: (str(v).upper() == "TRUE") for cid, v in r["values"].items()}
+    return rows
+
 def keep_custom_rows(rows, grid, col_ids):
     """シートに人が足した行（雛形に無いキー）を、作り直しても残す。「追加項目」の後ろに付ける"""
     known = {r["key"] for r in rows}
@@ -114,6 +129,7 @@ def keep_custom_rows(rows, grid, col_ids):
         g = list(g) + [""] * len(hdr)
         key = str(g[1]).strip()
         if not key or key in known or key == "extra.": continue
+        if re.match(r"^rounds\[\d+\]\.tracks$", key): continue          # 廃止した行（実施トラック）
         row = R(str(g[0]).lstrip("　").lstrip("＊"), key, str(g[2]), required=str(g[0]).find("＊") >= 0, indent=1, use=str(g[3]))
         row["values"] = {cid: g[hdr.index(cid)] for cid in col_ids if cid in hdr}
         rows.append(row); known.add(key)
@@ -141,17 +157,19 @@ def grid_tab(name, rows, col_ids, en_mode, past_ids=(), lang_row=None, end_row=N
     def end_ref(sheet_prefix=""):
         cell = f"{sheet_prefix}{first}${end_row}" if not en_mode else f"INDIRECT(\"'{TAB_JA}'!R{end_row}C\"&COLUMN(),FALSE)"
         return f'OR({cell}="",IFERROR(IF(ISNUMBER({cell}),{cell},DATEVALUE({cell})),0)>=TODAY())'
-    cond = [f'{first}$1<>""', f'{first}2=""', 'REGEXMATCH($A2,"＊")', end_ref()]
+    need = f'IF($D$1="全部",REGEXMATCH($A2,"＊"),ISNUMBER(SEARCH($D$1&"＊",$D2)))'
+    cond = [f'{first}$1<>""', f'{first}2=""', need, end_ref()]
     if en_mode: cond.append(f"REGEXMATCH(INDIRECT(\"'{TAB_JA}'!R{lang_row}C\"&COLUMN(),FALSE),\"英語|両方\")")
-    rules = [{"range": f"{first}2:{last}{nrow}", "formula": "=AND(" + ",".join(cond) + ")", "bg": "#f8d7da"},
-             {"range": f"A2:{last}{nrow}", "formula": '=AND($D$1<>"全部",ISNUMBER(SEARCH($D$1,$D2)))', "bg": "#fff2a8"},
+    rules = [{"range": f"{first}2:{last}{nrow}", "formula": "=AND(" + ",".join(cond) + ")", "bg": "#f4a7a7"},
+             {"range": f"A2:{last}{nrow}", "formula": '=AND($D$1<>"全部",ISNUMBER(SEARCH($D$1&"＊",$D2)))', "bg": "#ffd966"},
+             {"range": f"A2:{last}{nrow}", "formula": '=AND($D$1<>"全部",ISNUMBER(SEARCH($D$1,$D2)))', "bg": "#fff7d6"},
              {"range": f"A2:{last}{nrow}", "formula": '=AND($D$1<>"全部",$D2<>"",NOT(ISNUMBER(SEARCH($D$1,$D2))))', "fg": "#b0b0b0"}]
     groups = [{"start": 2, "end": 3, "collapsed": True}]
     old = [j for j, cid in enumerate(col_ids) if cid in past_ids][:-2]
     if old: groups.append({"start": FIRST_COL + old[0], "end": FIRST_COL + old[-1], "collapsed": True})
     return {"name": name, "header": header, "rows": data, "ncols": ncol, "widths": [300, 300, 480, 150] + [300] * len(cols), "freeze_rows": 1, "freeze_cols": 1,
             "col_groups": groups, "validations": vals, "bg": bg, "rules": rules, "protect": "A:D", "wrap": True,
-            "notes": [{"cell": "D1", "text": "用途を選ぶと、その用途で使う行に色が付き、他の行は薄くなります。「全部」で元に戻ります。"}]}
+            "notes": [{"cell": "D1", "text": "用途を選ぶと、その用途で必須の行が濃い黄色、使うだけの行が薄い黄色、関係ない行は薄字になります。赤はその用途で必須なのに空のセル（会期前の大会だけ）。D 列の＊が「その用途で必須」の印です。「全部」で元に戻ります。"}]}
 
 def catalog_tabs():
     f = SI.load_fields(); tracks, profiles = SI.load_catalog()
@@ -168,12 +186,16 @@ def catalog_tabs():
     ru = {"name": "ルール", "header": ["項目"] + names + ["キー", "説明"], "rows": rows, "widths": [260] + [140] * len(names) + [220, 320], "validations": [], "bg": [], "freeze_rows": 1, "keep_existing": True}
     return [tr, tre, ru]
 
-def build_tabs(contests: dict, current_ja=None, current_en=None, today=None):
+def build_tabs(contests: dict, current_ja=None, current_en=None, today=None, from_sheet=False):
+    """from_sheet=True ならセルの値をシートからそのまま引き継ぐ（contests は id の並びと会期の判定にだけ使う）"""
     today = today or datetime.date.today()
     n_rounds = max([2] + [len(c.get("rounds", [])) for c in contests.values()])
     n_sp = max([3] + [len(c.get("sponsors") or []) for c in contests.values()])
     ja, en = template(n_rounds, n_sp); ids = list(contests)
-    fill(ja, contests); fill(en, contests)
+    if from_sheet:
+        fill_raw(ja, raw_values(current_ja), ids); fill_raw(en, raw_values(current_en), ids)
+    else:
+        fill(ja, contests); fill(en, contests)
     keep_custom_rows(ja, current_ja, ids); keep_custom_rows(en, current_en, ids)
     row_of = {r["key"]: i for i, r in enumerate(ja, start=2)}
     past = [cid for cid, c in contests.items() if not SI.is_active(c, today)]
