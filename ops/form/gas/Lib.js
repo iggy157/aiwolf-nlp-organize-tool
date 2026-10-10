@@ -112,10 +112,19 @@ function upsertGrid(spec) {
       sh.getRange(r0, c0, nr, nc).setDataValidation(rule);
     });
     (tab.bg || []).forEach(b => { const r = sh.getRange(b.row, 1, 1, b.cols || 1); r.setBackground(b.color); if (b.bold) r.setFontWeight('bold'); });
+    const cf = [];
     if (tab.required && tab.required.length) {
       const ranges = tab.required.map(q => sh.getRange(q.row, q.col_start, 1, q.col_end - q.col_start + 1));
-      sh.setConditionalFormatRules([SpreadsheetApp.newConditionalFormatRule().whenCellEmpty().setBackground('#f8d7da').setRanges(ranges).build()]);
+      cf.push(SpreadsheetApp.newConditionalFormatRule().whenCellEmpty().setBackground('#f8d7da').setRanges(ranges).build());
     }
+    (tab.highlight || []).forEach(h => {
+      let b = SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied(h.formula).setRanges([sh.getRange(h.range)]);
+      if (h.bg) b = b.setBackground(h.bg);
+      if (h.fg) b = b.setFontColor(h.fg);
+      cf.push(b.build());
+    });
+    if (cf.length) sh.setConditionalFormatRules(cf);
+    (tab.notes || []).forEach(n => sh.getRange(n.cell).setNote(n.text).setBackground('#d9ead3').setFontWeight('bold'));
     (tab.col_groups || []).forEach(g => {
       const rg = sh.getRange(1, g.start, 1, g.end - g.start + 1);
       rg.shiftColumnGroupDepth(1);
