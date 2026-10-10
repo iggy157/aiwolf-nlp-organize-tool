@@ -8,6 +8,7 @@
 横断タブ「トラック」「トラック_en」「ルール」は最初の 1 回だけ作る。
 """
 import re
+import datetime
 import yaml
 from ..paths import CONTESTS
 
@@ -39,7 +40,7 @@ def _fmt_date(m: dict) -> str:
     return d + ("〜" if m.get("open") else "")
 
 def _cell(v, t):
-    if v is None: return ""
+    if v is None or v == "": return ""
     if t == "bool": return bool(v)
     if t == "list": return ", ".join(str(x) for x in v) if isinstance(v, list) else str(v)
     if t == "date": return str(v)[:10].replace("-", "/")
@@ -135,10 +136,10 @@ def _parse_date_cell(s: str) -> dict | None:
     if not s: return None
     m = re.match(r"^(\d{4})/(\d{1,2})/(\d{1,2})\s*(〜\s*(?:(\d{4})/)?(\d{1,2})/(\d{1,2})|〜)?$", s)
     if not m: return {"date": s}
-    d = f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"; out = {"date": d}
+    d = datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3))); out = {"date": d}
     if m.group(4) == "〜" or (m.group(4) and m.group(4).strip() == "〜"): out["open"] = True
     elif m.group(4):
-        y = m.group(5) or m.group(1); out["end"] = f"{y}-{int(m.group(6)):02d}-{int(m.group(7)):02d}"
+        y = m.group(5) or m.group(1); out["end"] = datetime.date(int(y), int(m.group(6)), int(m.group(7)))
     return out
 
 def _cast(v, t):
