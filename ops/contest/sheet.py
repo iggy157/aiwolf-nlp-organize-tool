@@ -167,8 +167,10 @@ def grid_tab(name, rows, col_ids, en_mode, past_ids=(), lang_row=None, end_row=N
     groups = [{"start": 2, "end": 3, "collapsed": True}]
     old = [j for j, cid in enumerate(col_ids) if cid in past_ids][:-2]
     if old: groups.append({"start": FIRST_COL + old[0], "end": FIRST_COL + old[-1], "collapsed": True})
+    past_cols = [_col(FIRST_COL + j) for j, cid in enumerate(col_ids) if cid in past_ids]
+    protect = ",".join(["A:D"] + [f"{c_}:{c_}" for c_ in past_cols])     # 終わった大会の列も、編集しようとすると警告が出る
     return {"name": name, "header": header, "rows": data, "ncols": ncol, "widths": [300, 300, 480, 150] + [300] * len(cols), "freeze_rows": 1, "freeze_cols": 1,
-            "col_groups": groups, "validations": vals, "bg": bg, "rules": rules, "protect": "A:D", "wrap": True,
+            "col_groups": groups, "validations": vals, "bg": bg, "rules": rules, "protect": protect, "wrap": True,
             "notes": [{"cell": "D1", "text": "用途を選ぶと、その用途で必須の行が濃い黄色、使うだけの行が薄い黄色、関係ない行は薄字になります。赤はその用途で必須なのに空のセル（会期前の大会だけ）。D 列の＊が「その用途で必須」の印です。「全部」で元に戻ります。"}]}
 
 def catalog_tabs():

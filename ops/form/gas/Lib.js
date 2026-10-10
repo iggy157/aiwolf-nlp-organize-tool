@@ -131,7 +131,7 @@ function upsertGrid(spec) {
       rg.shiftColumnGroupDepth(1);
       if (g.collapsed) { try { sh.getColumnGroup(g.start, 1).collapse(); } catch (e) {} }
     });
-    if (tab.protect) { const pr = sh.getRange(tab.protect).protect(); pr.setWarningOnly(true); pr.setDescription('項目・キー・説明の列。値は大会の列に入力'); }
+    (tab.protect || '').split(',').filter(Boolean).forEach(a1 => { const pr = sh.getRange(a1).protect(); pr.setWarningOnly(true); pr.setDescription(a1 === 'A:D' ? '項目・キー・説明・用途の列は変えない' : '会期が終わった大会の列です。直す必要があるときだけ編集してください'); });
   });
   // タブの並び: 大会, 大会_en, トラック, トラック_en, ルール
   ['ルール', 'トラック_en', 'トラック', '大会_en', '大会'].forEach(n => { const sh = ss.getSheetByName(n); if (sh) { ss.setActiveSheet(sh); ss.moveActiveSheet(1); } });
