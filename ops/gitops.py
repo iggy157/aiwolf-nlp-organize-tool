@@ -10,6 +10,8 @@ def _git(*args, check=True):
 def pull():
     if _git("status", "--porcelain"):
         print(f"注意: {CONTESTS} に未コミットの変更があるので pull しません"); return
+    if not _git("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}", check=False):
+        return                                                    # 追跡するリモートがまだ無い（作ったばかり）
     _git("pull", "-q", "--ff-only")
 
 def commit_push(paths: list[str], message: str, push=True) -> bool:

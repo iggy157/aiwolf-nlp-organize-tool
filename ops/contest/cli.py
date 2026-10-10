@@ -3,7 +3,7 @@
 新しい大会はシートの空いている列の 1 行目に id を書いて埋め、シートのメニュー「大会データ → 大会データを更新」を押す。
 押すと contest-data の GitHub Actions がシートを読んで contest.yaml を書き、push する。ここにあるのはその周りの道具。
 """
-import json, subprocess, sys, urllib.request
+import json, re, subprocess, sys, urllib.request
 from pathlib import Path
 import yaml
 from ..paths import CONTESTS, OPS, load_secrets
@@ -24,10 +24,15 @@ def add_parser(sub):
     b = s.add_parser("button", help="シートに「大会データ」メニュー（更新ボタン）を付ける／更新する"); b.set_defaults(func=cmd_button)
     u = s.add_parser("url", help="シートの URL"); u.set_defaults(func=cmd_url)
 
-def _book():
-    bid = yaml.safe_load((CONTESTS / "sheet.yaml").read_text(encoding="utf-8"))["book_id"]
-    if not bid: sys.exit("contest-data の sheet.yaml に book_id がありません")
+def _book(required=True):
+    bid = (yaml.safe_load((CONTESTS / "sheet.yaml").read_text(encoding="utf-8")) or {}).get("book_id")
+    if not bid and required: sys.exit("contest-data の sheet.yaml に book_id がありません（新しく作るなら ops contest layout --from-files）")
     return bid
+
+def _save_book(bid: str, url: str):
+    p = CONTESTS / "sheet.yaml"; s = p.read_text(encoding="utf-8")
+    s = re.sub(r"^book_id:.*$", f"book_id: {bid}", s, flags=re.M); s = re.sub(r"^url:.*$", f"url: {url}", s, flags=re.M)
+    p.write_text(s, encoding="utf-8")
 
 def _post_webapp(payload: dict) -> dict:
     dep = _config().get("form_webapp_deployment")
@@ -46,8 +51,8 @@ def read_grids(book_id: str) -> dict[str, list[list]]:
     return {t: vr.get("values", []) for t, vr in zip(want, res["valueRanges"])}
 
 def cmd_layout(a):
-    book = _book(); gitops.pull()
-    grids = read_grids(book)
+    book = _book(required=not a.from_files); gitops.pull()
+    grids = read_grids(book) if book else {}
     catalog = SI.catalog_from_tabs(grids.get("トラック"), grids.get("トラック_en"), grids.get("ルール"))
     if a.from_files:
         contests = {}
@@ -58,11 +63,15 @@ def cmd_layout(a):
     else:
         ja, en = grids.get(TAB_JA, []), grids.get(TAB_EN, [])
         contests = {cid: SI.items_to_contest(cid, SI.column_items(ja, cid), SI.column_items(en, cid), catalog) for cid in SI.grid_columns(ja)}
+        contests = dict(sorted(contests.items(), key=lambda kv: str((kv[1].get("venue") or {}).get("start") or "9999")))
     tabs = build_tabs(contests, grids.get(TAB_JA), grids.get(TAB_EN), from_sheet=not a.from_files)
     share = []
     sa = load_secrets().get("GOOGLE_SERVICE_ACCOUNT_JSON")
     if sa and Path(sa).exists(): share.append(json.loads(Path(sa).read_text())["client_email"])
-    res = _post_webapp({"fn": "upsertGrid", "spec": {"book_id": book, "tabs": tabs, "share_with": share, "public": True}})
+    res = _post_webapp({"fn": "upsertGrid", "spec": {"book_id": book, "title": "大会定義", "tabs": tabs, "share_with": share, "public": True}})
+    if not book:
+        _save_book(res["book_id"], res["book_url"])
+        print(f"新しいシートを作りました（contest-data の sheet.yaml に書きました。commit して push してください）")
     print(f"シートの形を作り直しました: {res['book_url']}\n  大会の列: {', '.join(contests) or '（なし）'}")
 
 def cmd_import(a):
