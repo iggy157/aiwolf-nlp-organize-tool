@@ -100,6 +100,11 @@ function upsertDefinitionTabs(spec) {
       if (rule) (v.row ? sh.getRange(v.row, v.col) : sh.getRange(3, v.col, 200, 1)).setDataValidation(rule);
     });
     (tab.bg || []).forEach(b => { const r = sh.getRange(b.row, 1, 1, b.cols || 1); r.setBackground(b.color); if (b.bold) r.setFontWeight('bold'); });
+    if (tab.required_rows && tab.required_rows.length) {
+      const ranges = tab.required_rows.map(r => sh.getRange(r, 2));
+      const rule = SpreadsheetApp.newConditionalFormatRule().whenCellEmpty().setBackground('#f8d7da').setRanges(ranges).build();
+      sh.setConditionalFormatRules([rule]);
+    }
     if (tab.collapse) { sh.getRange(tab.collapse).setBackground('#f8f9fa').setFontColor('#5f6368'); sh.getRange(tab.collapse).shiftColumnGroupDepth(1); sh.collapseAllColumnGroups(); }
     (tab.protect || '').split(',').filter(Boolean).forEach(a1 => { const pr = sh.getRange(a1).protect(); pr.setWarningOnly(true); pr.setDescription('値は B 列に入力。この列は変えない'); });
   });
