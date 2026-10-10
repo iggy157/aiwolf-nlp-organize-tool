@@ -71,50 +71,13 @@ function doPost(e) {
   let out;
   try {
     const p = JSON.parse((e && e.postData && e.postData.contents) || '{}');
-    if (p.fn === 'upsertTabs') out = { ok: true, result: upsertDefinitionTabs(p.spec) };
+    if (p.fn === 'upsertGrid') out = { ok: true, result: upsertGrid(p.spec) };
     else out = { ok: false, error: 'unknown fn' };
   } catch (err) { out = { ok: false, error: String(err && err.stack || err) }; }
   return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
 }
 
 
-/** 大会定義シート（1 冊）。spec: {book_id?, title, share_with:[], tabs:[{name, header, rows, widths, validations, bg:[{row,cols,color,bold}], collapse:'C:E', protect:'A:A,C:E'}]}
- *  book_id が無ければ新しく作る。同名のタブがあれば置き換える。 */
-function upsertDefinitionTabs(spec) {
-  const ss = spec.book_id ? SpreadsheetApp.openById(spec.book_id) : SpreadsheetApp.create(spec.title);
-  spec.tabs.forEach(tab => {
-    let sh = ss.getSheetByName(tab.name);
-    if (sh && tab.keep_existing) return;
-    if (sh) { ss.deleteSheet(sh); }
-    sh = ss.insertSheet(tab.name);
-    const ncol = tab.header.length;
-    sh.getRange(1, 1, 1, ncol).setValues([tab.header]).setFontWeight('bold').setBackground('#e8eaed');
-    if (tab.rows.length) sh.getRange(2, 1, tab.rows.length, ncol).setValues(tab.rows);
-    sh.setFrozenRows(1);
-    (tab.widths || []).forEach((w, j) => { if (w) sh.setColumnWidth(j + 1, w); });
-    sh.getRange(1, 1, tab.rows.length + 1, ncol).setWrap(true).setVerticalAlignment('top');
-    (tab.validations || []).forEach(v => {
-      let rule = null;
-      if (v.type === 'list') rule = SpreadsheetApp.newDataValidation().requireValueInList(v.values, true).setAllowInvalid(false).build();
-      else if (v.type === 'date') rule = SpreadsheetApp.newDataValidation().requireDate().setAllowInvalid(true).setHelpText('日付（例 2027/07/04）').build();
-      else if (v.type === 'checkbox') rule = SpreadsheetApp.newDataValidation().requireCheckbox().build();
-      if (rule) (v.row ? sh.getRange(v.row, v.col) : sh.getRange(3, v.col, 200, 1)).setDataValidation(rule);
-    });
-    (tab.bg || []).forEach(b => { const r = sh.getRange(b.row, 1, 1, b.cols || 1); r.setBackground(b.color); if (b.bold) r.setFontWeight('bold'); });
-    if (tab.required_rows && tab.required_rows.length) {
-      const ranges = tab.required_rows.map(r => sh.getRange(r, 2));
-      const rule = SpreadsheetApp.newConditionalFormatRule().whenCellEmpty().setBackground('#f8d7da').setRanges(ranges).build();
-      sh.setConditionalFormatRules([rule]);
-    }
-    if (tab.collapse) { sh.getRange(tab.collapse).setBackground('#f8f9fa').setFontColor('#5f6368'); sh.getRange(tab.collapse).shiftColumnGroupDepth(1); sh.collapseAllColumnGroups(); }
-    (tab.protect || '').split(',').filter(Boolean).forEach(a1 => { const pr = sh.getRange(a1).protect(); pr.setWarningOnly(true); pr.setDescription('値は B 列に入力。この列は変えない'); });
-  });
-  // 既定の空シートが残っていれば消す
-  const def = ss.getSheetByName('シート1') || ss.getSheetByName('Sheet1');
-  if (def && ss.getSheets().length > 1) ss.deleteSheet(def);
-  (spec.share_with || []).forEach(addr => { try { ss.addViewer(addr); } catch (e) {} });
-  return { book_id: ss.getId(), book_url: ss.getUrl(), tabs: spec.tabs.map(t => t.name) };
-}
 
 /** エディタで一度だけ実行する: 必要な権限（フォーム・スプレッドシート・ドライブ）の承認画面を出すためだけの関数 */
 function authorize() {
@@ -122,4 +85,50 @@ function authorize() {
   const s = SpreadsheetApp.create('ops-authorize-check'); DriveApp.getFileById(s.getId()).setTrashed(true);
   Logger.log('ok: drive=' + n);
   return 'ok';
+}
+
+/** 大会定義シート（行 = 項目、列 = 大会）。spec: {book_id?, title, share_with, public, tabs:[{name, header, rows, widths, freeze_rows, freeze_cols,
+ *  col_groups:[{start,end,collapsed}], validations:[{row,row_end?,col_start,col_end,type,values}], bg:[{row,cols,color,bold}], required:[{row,col_start,col_end}], protect, wrap, keep_existing}]} */
+function upsertGrid(spec) {
+  const ss = spec.book_id ? SpreadsheetApp.openById(spec.book_id) : SpreadsheetApp.create(spec.title);
+  spec.tabs.forEach(tab => {
+    let sh = ss.getSheetByName(tab.name);
+    if (sh && tab.keep_existing) return;
+    if (sh) ss.deleteSheet(sh);
+    sh = ss.insertSheet(tab.name);
+    const ncol = tab.header.length, nrow = tab.rows.length + 1;
+    sh.getRange(1, 1, 1, ncol).setValues([tab.header]).setFontWeight('bold').setBackground('#e8eaed');
+    if (tab.rows.length) sh.getRange(2, 1, tab.rows.length, ncol).setValues(tab.rows);
+    if (tab.freeze_rows) sh.setFrozenRows(tab.freeze_rows);
+    if (tab.freeze_cols) sh.setFrozenColumns(tab.freeze_cols);
+    (tab.widths || []).forEach((w, j) => { if (w) sh.setColumnWidth(j + 1, w); });
+    if (tab.wrap) sh.getRange(1, 1, nrow, ncol).setWrap(true).setVerticalAlignment('top');
+    (tab.validations || []).forEach(v => {
+      let rule = null;
+      if (v.type === 'list') rule = SpreadsheetApp.newDataValidation().requireValueInList(v.values, true).setAllowInvalid(false).build();
+      else if (v.type === 'checkbox') rule = SpreadsheetApp.newDataValidation().requireCheckbox().build();
+      if (!rule) return;
+      const r0 = v.row, nr = (v.row_end || v.row) - v.row + 1, c0 = v.col_start || v.col, nc = (v.col_end || c0) - c0 + 1;
+      sh.getRange(r0, c0, nr, nc).setDataValidation(rule);
+    });
+    (tab.bg || []).forEach(b => { const r = sh.getRange(b.row, 1, 1, b.cols || 1); r.setBackground(b.color); if (b.bold) r.setFontWeight('bold'); });
+    if (tab.required && tab.required.length) {
+      const ranges = tab.required.map(q => sh.getRange(q.row, q.col_start, 1, q.col_end - q.col_start + 1));
+      sh.setConditionalFormatRules([SpreadsheetApp.newConditionalFormatRule().whenCellEmpty().setBackground('#f8d7da').setRanges(ranges).build()]);
+    }
+    (tab.col_groups || []).forEach(g => {
+      const rg = sh.getRange(1, g.start, 1, g.end - g.start + 1);
+      rg.shiftColumnGroupDepth(1);
+      if (g.collapsed) { try { sh.getColumnGroup(g.start, 1).collapse(); } catch (e) {} }
+    });
+    if (tab.protect) { const pr = sh.getRange(tab.protect).protect(); pr.setWarningOnly(true); pr.setDescription('項目・キー・説明の列。値は大会の列に入力'); }
+  });
+  // タブの並び: 大会, 大会_en, トラック, トラック_en, ルール
+  ['ルール', 'トラック_en', 'トラック', '大会_en', '大会'].forEach(n => { const sh = ss.getSheetByName(n); if (sh) { ss.setActiveSheet(sh); ss.moveActiveSheet(1); } });
+  const def = ss.getSheetByName('シート1') || ss.getSheetByName('Sheet1');
+  if (def && ss.getSheets().length > 1) ss.deleteSheet(def);
+  (spec.drop_tabs || []).forEach(n => { const s = ss.getSheetByName(n); if (s && ss.getSheets().length > 1) ss.deleteSheet(s); });
+  (spec.share_with || []).forEach(addr => { try { ss.addViewer(addr); } catch (e) {} });
+  if (spec.public) { try { DriveApp.getFileById(ss.getId()).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {} }
+  return { book_id: ss.getId(), book_url: ss.getUrl(), tabs: ss.getSheets().map(s => s.getName()) };
 }
