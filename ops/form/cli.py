@@ -109,10 +109,10 @@ def cmd_create(a):
     clasp_json = GAS_DIR / ".clasp.json"
     if not sid:
         if clasp_json.exists(): clasp_json.unlink()
-        r = subprocess.run(["clasp", "create", "--type", "standalone", "--title", "aiwolf-nlp-ops form"], cwd=GAS_DIR, capture_output=True, text=True)
+        r = subprocess.run(["clasp", "create", "--type", "standalone", "--title", "aiwolf-nlp-organizer-tool form"], cwd=GAS_DIR, capture_output=True, text=True)
         if r.returncode != 0: sys.exit("clasp create に失敗:\n" + r.stdout + r.stderr)
         sid = json.loads(clasp_json.read_text())["scriptId"]; _save_config(form_script_id=sid)
-        print(f"Apps Script プロジェクトを作成: aiwolf-nlp-ops form ({sid})")
+        print(f"Apps Script プロジェクトを作成: aiwolf-nlp-organizer-tool form ({sid})")
     else:
         clasp_json.write_text(json.dumps({"scriptId": sid, "rootDir": "."}), encoding="utf-8")
     if not a.no_push:

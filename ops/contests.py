@@ -5,7 +5,7 @@ from .paths import contest_dir
 def load_contest(cid: str) -> dict:
     p = contest_dir(cid) / "contest.yaml"
     if not p.exists():
-        raise SystemExit(f"contest.yaml がありません: {p}\n先に aiwolf-nlp-contests に contests/{cid}/contest.yaml を書いてください。")
+        raise SystemExit(f"contest.yaml がありません: {p}\n先に aiwolf-nlp-contest-data に contests/{cid}/contest.yaml を書いてください。")
     return yaml.safe_load(p.read_text(encoding="utf-8"))
 
 def set_contest_field(cid: str, key: str, value: str) -> None:

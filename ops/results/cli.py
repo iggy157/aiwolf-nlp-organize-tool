@@ -73,10 +73,10 @@ def cmd_build(a):
     if not cfg.exists(): sys.exit(f"設定がありません: {cfg}（ops results config {a.id}）")
     r = subprocess.run([sys.executable, str(SITE / "scripts/results/build_contest_yaml.py"), str(cfg)], cwd=SITE)
     if r.returncode != 0: sys.exit("build_contest_yaml.py が失敗しました")
-    print(f"results.yaml を書きました: {SITE}/external/aiwolf-nlp-contests/contests/{a.id}/results.yaml\n次: ops results site {a.id}")
+    print(f"results.yaml を書きました: {SITE}/external/aiwolf-nlp-contest-data/contests/{a.id}/results.yaml\n次: ops results site {a.id}")
 
 def cmd_site(a):
-    sub = SITE / "external/aiwolf-nlp-contests"
+    sub = SITE / "external/aiwolf-nlp-contest-data"
     subprocess.run(["git", "-C", str(sub), "add", "-A"], check=True)
     subprocess.run(["git", "-C", str(sub), "commit", "-q", "-m", f"results: {a.id}"], check=False)
     subprocess.run(["git", "-C", str(sub), "push", "-q"], check=False)

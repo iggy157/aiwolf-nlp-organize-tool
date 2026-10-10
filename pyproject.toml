@@ -1,5 +1,5 @@
 [project]
-name = "aiwolf-nlp-ops"
+name = "aiwolf-nlp-organizer-tool"
 version = "0.1.0"
 description = "人狼知能コンテスト（自然言語部門）の運営用ツール"
 requires-python = ">=3.11"

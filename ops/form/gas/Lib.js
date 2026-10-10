@@ -1,5 +1,5 @@
 /**
- * aiwolf-nlp-ops: 参加登録フォームの生成（共通部分）。
+ * aiwolf-nlp-organizer-tool: 参加登録フォームの生成（共通部分）。
  * Code.js（ops form create が生成）が SPECS と createForm_<大会 id>() を定義する。
  * 返り値は JSON 文字列。clasp run の戻り値、またはログから Python 側が読む。
  */

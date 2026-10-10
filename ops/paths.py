@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 OPS = Path(__file__).resolve().parents[1]
-CONTESTS = Path(os.environ.get("AIWOLF_CONTESTS", OPS.parent / "aiwolf-nlp-contests")).resolve()
+CONTESTS = Path(os.environ.get("AIWOLF_CONTESTS", OPS.parent / "aiwolf-nlp-contest-data")).resolve()
 SECRETS = Path(os.environ.get("OPS_SECRETS", Path.home() / ".ops" / "secrets.env"))
 
 def contest_dir(cid: str) -> Path:

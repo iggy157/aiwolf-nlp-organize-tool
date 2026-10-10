@@ -1,7 +1,7 @@
-# aiwolf-nlp-ops
+# aiwolf-nlp-organizer-tool
 
 人狼知能コンテスト（自然言語部門）の運営用の道具。公開してよいデータは
-[aiwolf-nlp-contests](https://github.com/aiwolfdial/aiwolf-nlp-contests) に置き、このリポジトリはそれを読んで動く。
+[aiwolf-nlp-contest-data](https://github.com/aiwolfdial/aiwolf-nlp-contest-data) に置き、このリポジトリはそれを読んで動く。
 **このリポジトリは非公開。** 秘密情報（トークン、鍵）は git に入れず `~/.ops/` に置く（[docs/setup_google.md](docs/setup_google.md)）。
 
 ```
