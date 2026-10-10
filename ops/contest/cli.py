@@ -5,7 +5,7 @@ from pathlib import Path
 from ..paths import CONTESTS, contest_dir, ops_contest_dir, load_secrets
 from ..contests import load_contest
 from ..form.cli import _access_token, _config
-from .sheet import build_spec, sheet_to_contest, TAB
+from .sheet import build_rows, rows_to_spec, tabs_to_contest
 
 def add_parser(sub):
     p = sub.add_parser("contest", help="大会定義シートの作成と、シートから contest.yaml の生成")
@@ -30,23 +30,29 @@ def cmd_new(a):
     share = []
     sa = load_secrets().get("GOOGLE_SERVICE_ACCOUNT_JSON")
     if sa and Path(sa).exists(): share.append(json.loads(Path(sa).read_text())["client_email"])
-    spec = build_spec(a.id, prev, share, test=a.test)
-    res = _post_webapp({"fn": "createSheet", "spec": spec})
-    p, d = _ops_yaml(a.id); d["definition_sheet_id"] = res["sheet_id"]; d["definition_sheet_url"] = res["sheet_url"]
+    ja, en = build_rows(a.id, prev)
+    lang = (prev or {}).get("language", "ja")
+    spec = rows_to_spec(a.id, ja, en, make_en=(lang == "en"), test=a.test)
+    cfg = _config(); key = "definition_book_id_test" if a.test else "definition_book_id"
+    spec["book_id"] = cfg.get(key); spec["share_with"] = share
+    res = _post_webapp({"fn": "upsertTabs", "spec": spec})
+    from ..form.cli import _save_config
+    _save_config(**{key: res["book_id"]})
+    p, d = _ops_yaml(a.id); d["definition_book_id"] = res["book_id"]; d["definition_tabs"] = res["tabs"]
     p.write_text(yaml.safe_dump(d, allow_unicode=True, sort_keys=False), encoding="utf-8")
-    print(f"大会定義シートを作りました: {res['sheet_url']}\n  値の列（A 列）を埋めたら: ops contest import {a.id}")
+    print(f"大会定義シートにタブを作りました: {res['book_url']}\n  タブ: {', '.join(res['tabs'])}\n  B 列を埋めたら: ops contest import {a.id}")
 
 def cmd_import(a):
-    p, d = _ops_yaml(a.id); sid = d.get("definition_sheet_id")
-    if not sid: sys.exit(f"大会定義シートがありません（ops contest new {a.id}）")
+    p, d = _ops_yaml(a.id); bid = d.get("definition_book_id")
+    if not bid: sys.exit(f"大会定義シートがありません（ops contest new {a.id}）")
     from ..gsheets import _service
     svc = _service()
-    meta = svc.spreadsheets().get(spreadsheetId=sid, fields="sheets.properties.title").execute()
-    titles = [s["properties"]["title"] for s in meta["sheets"]]
-    res = svc.spreadsheets().values().batchGet(spreadsheetId=sid, ranges=[f"'{t}'" for t in titles], valueRenderOption="FORMATTED_VALUE").execute()
-    tabs = {t: vr.get("values", []) for t, vr in zip(titles, res["valueRanges"])}
-    contest = sheet_to_contest(a.id, tabs)
-    # 必須の確認
+    titles = [s["properties"]["title"] for s in svc.spreadsheets().get(spreadsheetId=bid, fields="sheets.properties.title").execute()["sheets"]]
+    want = [t for t in (a.id, a.id + "_en") if t in titles]
+    if a.id not in want: sys.exit(f"タブ {a.id} がありません（あるタブ: {titles}）")
+    res = svc.spreadsheets().values().batchGet(spreadsheetId=bid, ranges=[f"'{t}'!A:E" for t in want], valueRenderOption="FORMATTED_VALUE").execute()
+    got = {t: vr.get("values", []) for t, vr in zip(want, res["valueRanges"])}
+    contest = tabs_to_contest(a.id, got[a.id], got.get(a.id + "_en"))
     from .sheet import load_fields
     missing = [q["key"] for q in load_fields()["basic"] if q.get("required") and not _nested(contest, q["key"])]
     if missing: print("未記入の必須項目:", ", ".join(missing))
