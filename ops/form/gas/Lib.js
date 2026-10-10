@@ -160,7 +160,7 @@ function setCell_(bookId, tab, key, cid, value) {
 /** 大会定義シートから大会の列を消す（「大会」は 1 行目の id ごと、「大会_en」は 2 行目以降の値だけ。型は残す） */
 function clearColumn_(bookId, cid) {
   const ss = SpreadsheetApp.openById(bookId); const out = {};
-  ['大会', '大会_en'].forEach(name => {
+  ['大会_en', '大会'].forEach(name => {
     const sh = ss.getSheetByName(name); if (!sh) return;
     const head = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0];
     const c = head.findIndex(x => String(x).trim() === cid);
