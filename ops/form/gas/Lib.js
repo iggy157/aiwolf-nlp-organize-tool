@@ -83,6 +83,7 @@ function upsertDefinitionTabs(spec) {
   const ss = spec.book_id ? SpreadsheetApp.openById(spec.book_id) : SpreadsheetApp.create(spec.title);
   spec.tabs.forEach(tab => {
     let sh = ss.getSheetByName(tab.name);
+    if (sh && tab.keep_existing) return;
     if (sh) { ss.deleteSheet(sh); }
     sh = ss.insertSheet(tab.name);
     const ncol = tab.header.length;
@@ -96,7 +97,7 @@ function upsertDefinitionTabs(spec) {
       if (v.type === 'list') rule = SpreadsheetApp.newDataValidation().requireValueInList(v.values, true).setAllowInvalid(false).build();
       else if (v.type === 'date') rule = SpreadsheetApp.newDataValidation().requireDate().setAllowInvalid(true).setHelpText('日付（例 2027/07/04）').build();
       else if (v.type === 'checkbox') rule = SpreadsheetApp.newDataValidation().requireCheckbox().build();
-      if (rule) sh.getRange(v.row, v.col).setDataValidation(rule);
+      if (rule) (v.row ? sh.getRange(v.row, v.col) : sh.getRange(3, v.col, 200, 1)).setDataValidation(rule);
     });
     (tab.bg || []).forEach(b => { const r = sh.getRange(b.row, 1, 1, b.cols || 1); r.setBackground(b.color); if (b.bold) r.setFontWeight('bold'); });
     if (tab.collapse) { sh.getRange(tab.collapse).setBackground('#f8f9fa').setFontColor('#5f6368'); sh.getRange(tab.collapse).shiftColumnGroupDepth(1); sh.collapseAllColumnGroups(); }

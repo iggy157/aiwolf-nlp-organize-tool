@@ -5,12 +5,12 @@ from pathlib import Path
 from ..paths import CONTESTS, contest_dir, ops_contest_dir, load_secrets
 from ..contests import load_contest
 from ..form.cli import _access_token, _config
-from .sheet import build_rows, rows_to_spec, tabs_to_contest
+from .sheet import build_rows, rows_to_spec, tabs_to_contest, catalog_from_tabs, save_catalog
 
 def add_parser(sub):
     p = sub.add_parser("contest", help="大会定義シートの作成と、シートから contest.yaml の生成")
     s = p.add_subparsers(dest="cmd", required=True)
-    n = s.add_parser("new", help="大会定義シートを作る（前回の値を入れておく）"); n.add_argument("id"); n.add_argument("--from", dest="prev"); n.add_argument("--test", action="store_true"); n.set_defaults(func=cmd_new)
+    n = s.add_parser("new", help="大会定義シートを作る（前回の値を入れておく）"); n.add_argument("id"); n.add_argument("--from", dest="prev"); n.add_argument("--test", action="store_true"); n.add_argument("--full", action="store_true", help="日付やフォーム URL も前回の値を入れる（既存の大会をそのまま写すとき）"); n.set_defaults(func=cmd_new)
     i = s.add_parser("import", help="大会定義シートを読んで contests/<id>/contest.yaml を書く（差分を表示）"); i.add_argument("id"); i.add_argument("--yes", action="store_true", help="確認せずに書く"); i.set_defaults(func=cmd_import)
 
 def _post_webapp(payload: dict) -> dict:
@@ -30,7 +30,7 @@ def cmd_new(a):
     share = []
     sa = load_secrets().get("GOOGLE_SERVICE_ACCOUNT_JSON")
     if sa and Path(sa).exists(): share.append(json.loads(Path(sa).read_text())["client_email"])
-    ja, en = build_rows(a.id, prev)
+    ja, en = build_rows(a.id, prev, full=a.full)
     lang = (prev or {}).get("language", "ja")
     spec = rows_to_spec(a.id, ja, en, make_en=(lang == "en"), test=a.test)
     cfg = _config(); key = "definition_book_id_test" if a.test else "definition_book_id"
@@ -48,11 +48,13 @@ def cmd_import(a):
     from ..gsheets import _service
     svc = _service()
     titles = [s["properties"]["title"] for s in svc.spreadsheets().get(spreadsheetId=bid, fields="sheets.properties.title").execute()["sheets"]]
-    want = [t for t in (a.id, a.id + "_en") if t in titles]
+    want = [t for t in (a.id, a.id + "_en", "トラック", "トラック_en", "ルール") if t in titles]
     if a.id not in want: sys.exit(f"タブ {a.id} がありません（あるタブ: {titles}）")
-    res = svc.spreadsheets().values().batchGet(spreadsheetId=bid, ranges=[f"'{t}'!A:E" for t in want], valueRenderOption="FORMATTED_VALUE").execute()
+    res = svc.spreadsheets().values().batchGet(spreadsheetId=bid, ranges=[f"'{t}'!A:H" for t in want], valueRenderOption="FORMATTED_VALUE").execute()
     got = {t: vr.get("values", []) for t, vr in zip(want, res["valueRanges"])}
-    contest = tabs_to_contest(a.id, got[a.id], got.get(a.id + "_en"))
+    catalog = catalog_from_tabs(got.get("トラック"), got.get("トラック_en"), got.get("ルール"))
+    save_catalog(*catalog)   # 横断タブの内容を catalog/ に写す
+    contest = tabs_to_contest(a.id, got[a.id], got.get(a.id + "_en"), catalog)
     from .sheet import load_fields
     missing = [q["key"] for q in load_fields()["basic"] if q.get("required") and not _nested(contest, q["key"])]
     if missing: print("未記入の必須項目:", ", ".join(missing))
