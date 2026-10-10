@@ -6,3 +6,4 @@ ops/form/gas/.clasp.json
 ops/form/gas/Code.js
 # render の出力（大会ごとに生成される。サーバへ配置したら不要）
 contests/*/server/*/log/
+ops/contest/gas_bound/

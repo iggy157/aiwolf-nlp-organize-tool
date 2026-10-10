@@ -59,6 +59,8 @@ function doGet(e) {
   try {
     if (p.fn === 'ping') out = { ok: true, result: ping() };
     else if (p.fn === 'createForm') out = { ok: true, result: JSON.parse(createFormFor(p.cid)) };
+    else if (p.fn === 'setCell') out = { ok: true, result: setCell_(p.book_id, p.tab, p.key, p.cid, p.value) };
+    else if (p.fn === 'trash') { const f = DriveApp.getFileById(p.file_id); const n = f.getName(); f.setTrashed(true); out = { ok: true, result: { trashed: n } }; }
     else if (p.fn === 'sharePublic') { DriveApp.getFileById(p.file_id).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); out = { ok: true, result: { public: true } }; }
     else if (p.fn === 'share') { SpreadsheetApp.openById(p.file_id).addViewer(p.email); out = { ok: true, result: { shared: p.email } }; }
     else out = { ok: false, error: 'unknown fn' };
@@ -97,6 +99,7 @@ function upsertGrid(spec) {
     if (sh) ss.deleteSheet(sh);
     sh = ss.insertSheet(tab.name);
     const ncol = tab.header.length, nrow = tab.rows.length + 1;
+    if (sh.getMaxColumns() < ncol) sh.insertColumnsAfter(sh.getMaxColumns(), ncol - sh.getMaxColumns());
     sh.getRange(1, 1, 1, ncol).setValues([tab.header]).setFontWeight('bold').setBackground('#e8eaed');
     if (tab.rows.length) sh.getRange(2, 1, tab.rows.length, ncol).setValues(tab.rows);
     if (tab.freeze_rows) sh.setFrozenRows(tab.freeze_rows);
@@ -113,11 +116,7 @@ function upsertGrid(spec) {
     });
     (tab.bg || []).forEach(b => { const r = sh.getRange(b.row, 1, 1, b.cols || 1); r.setBackground(b.color); if (b.bold) r.setFontWeight('bold'); });
     const cf = [];
-    if (tab.required && tab.required.length) {
-      const ranges = tab.required.map(q => sh.getRange(q.row, q.col_start, 1, q.col_end - q.col_start + 1));
-      cf.push(SpreadsheetApp.newConditionalFormatRule().whenCellEmpty().setBackground('#f8d7da').setRanges(ranges).build());
-    }
-    (tab.highlight || []).forEach(h => {
+    (tab.rules || []).forEach(h => {
       let b = SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied(h.formula).setRanges([sh.getRange(h.range)]);
       if (h.bg) b = b.setBackground(h.bg);
       if (h.fg) b = b.setFontColor(h.fg);
@@ -141,4 +140,17 @@ function upsertGrid(spec) {
   (spec.share_with || []).forEach(addr => { try { ss.addViewer(addr); } catch (e) {} });
   if (spec.public) { try { DriveApp.getFileById(ss.getId()).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {} }
   return { book_id: ss.getId(), book_url: ss.getUrl(), tabs: ss.getSheets().map(s => s.getName()) };
+}
+
+/** 大会定義シートの 1 セルを書く。行は B 列のキー、列は 1 行目の大会 id で探す */
+function setCell_(bookId, tab, key, cid, value) {
+  const sh = SpreadsheetApp.openById(bookId).getSheetByName(tab);
+  if (!sh) throw new Error('タブがありません: ' + tab);
+  const v = sh.getDataRange().getDisplayValues();
+  const r = v.findIndex(row => String(row[1]).trim() === key);
+  const c = v[0].findIndex(x => String(x).trim() === cid);
+  if (r < 0) throw new Error('キーの行がありません: ' + key);
+  if (c < 0) throw new Error('大会の列がありません: ' + cid);
+  sh.getRange(r + 1, c + 1).setValue(value);
+  return { row: r + 1, col: c + 1 };
 }

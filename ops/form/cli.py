@@ -81,14 +81,21 @@ def _call_webapp(fn: str, **params) -> dict:
     return d["result"]
 
 def _write_back(cid: str, result: dict):
-    set_contest_field(cid, "form_url", result["form_url"])
+    """フォーム URL は大会定義シートに書く（contest.yaml はシートから作るので直接は書かない）"""
+    import yaml as _y
+    from ..paths import CONTESTS
+    book = _y.safe_load((CONTESTS / "sheet.yaml").read_text(encoding="utf-8"))["book_id"]
+    _call_webapp("setCell", book_id=book, tab="大会", key="form_url", cid=cid, value=result["form_url"])
     _save_ops(cid, form_id=result["form_id"], form_edit_url=result["form_edit_url"], sheet_id=result["sheet_id"], sheet_url=result["sheet_url"])
     print("書き戻し:")
-    print(f"  contests/{cid}/contest.yaml  form_url: {result['form_url']}")
-    print(f"  ops contests/{cid}/ops.yaml  sheet_id / form_edit_url / sheet_url")
+    print(f"  大会定義シート（列 {cid}）の「参加フォーム URL」: {result['form_url']}")
+    print(f"  ops contests/{cid}/ops.yaml  sheet_id / form_edit_url / sheet_url（回答シート。非公開）")
+    print("サイトに出すには、シートのメニュー「大会データ → 大会データを更新」を押してください。")
 
 def cmd_create(a):
     cid = a.id
+    from .. import gitops
+    gitops.pull()                                   # シートのボタンで更新された contest.yaml を取り込む
     contest = load_contest(cid)
     fy = ops_contest_dir(cid) / "form.yaml"
     if not fy.exists(): sys.exit(f"form.yaml がありません: {fy}\n`ops form init {cid} --from <前回>` で作ってください。")

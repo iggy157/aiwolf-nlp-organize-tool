@@ -19,6 +19,7 @@ def add_parser(sub):
     p.add_argument("--once", action="store_true", help="1 回だけ（既定は --interval ごとに繰り返す）")
     p.add_argument("--interval", type=int, default=300, help="繰り返しの間隔 [秒]。既定 300")
     p.add_argument("--no-notify", action="store_true", help="Slack に通知しない")
+    p.add_argument("--no-push", action="store_true", help="teams.yaml を contest-data に push しない")
     p.set_defaults(func=cmd_sync)
 
 def _columns(cid: str, contest: dict, header: list[str]) -> dict:
@@ -97,7 +98,10 @@ def sync_once(cid: str, notify: bool) -> int:
     return new
 
 def cmd_sync(a):
+    from .. import gitops
     while True:
-        sync_once(a.id, notify=not a.no_notify)
+        gitops.pull()
+        if sync_once(a.id, notify=not a.no_notify) and not getattr(a, "no_push", False):
+            if gitops.commit_push([f"contests/{a.id}/teams.yaml"], f"data: {a.id} の参加チーム一覧を更新"): print("  contest-data に push しました")
         if a.once: return 0
         time.sleep(a.interval)
