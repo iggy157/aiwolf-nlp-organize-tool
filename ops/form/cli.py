@@ -22,6 +22,7 @@ def add_parser(sub):
     c.add_argument("--test", action="store_true", help="タイトルに [test] を付ける（あとで消す前提の試し作成）")
     c.add_argument("--via", choices=["webapp", "run"], default="webapp", help="実行方法。webapp=デプロイ済みウェブアプリを OAuth トークンで呼ぶ（既定） run=clasp run")
     c.add_argument("--no-push", action="store_true", help="push を省略（コードを変えていないとき）")
+    c.add_argument("--again", action="store_true", help="既にフォームがあっても新しく作る")
     c.set_defaults(func=cmd_create)
 
 def cmd_init(a):
@@ -112,6 +113,10 @@ def cmd_create(a):
     cid = a.id
     from .. import gitops
     gitops.pull()                                   # シートのボタンで更新された contest.yaml を取り込む
+    op = ops_contest_dir(cid) / "ops.yaml"
+    existing = (yaml.safe_load(op.read_text(encoding="utf-8")) or {}).get("form_edit_url") if op.exists() else None
+    if existing and not a.dry_run and not a.test and not getattr(a, "again", False):
+        sys.exit(f"{cid} のフォームは既にあります: {existing}\n名前を直すだけなら `ops form rename {cid}`。作り直すなら --again（古いフォームは残る）")
     contest = load_contest(cid)
     fy = ops_contest_dir(cid) / "form.yaml"
     if not fy.exists(): sys.exit(f"form.yaml がありません: {fy}\n`ops form init {cid} --from <前回>` で作ってください。")
