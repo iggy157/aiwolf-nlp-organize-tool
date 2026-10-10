@@ -61,6 +61,7 @@ function doGet(e) {
     else if (p.fn === 'createForm') out = { ok: true, result: JSON.parse(createFormFor(p.cid)) };
     else if (p.fn === 'setCell') out = { ok: true, result: setCell_(p.book_id, p.tab, p.key, p.cid, p.value) };
     else if (p.fn === 'retitle') { FormApp.openById(p.form_id).setTitle(p.title); if (p.sheet_id) SpreadsheetApp.openById(p.sheet_id).rename(p.title + ' (回答)'); out = { ok: true, result: { title: p.title } }; }
+    else if (p.fn === 'clearColumn') out = { ok: true, result: clearColumn_(p.book_id, p.cid) };
     else if (p.fn === 'trash') { const f = DriveApp.getFileById(p.file_id); const n = f.getName(); f.setTrashed(true); out = { ok: true, result: { trashed: n } }; }
     else if (p.fn === 'sharePublic') { DriveApp.getFileById(p.file_id).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); out = { ok: true, result: { public: true } }; }
     else if (p.fn === 'share') { SpreadsheetApp.openById(p.file_id).addViewer(p.email); out = { ok: true, result: { shared: p.email } }; }
@@ -154,4 +155,19 @@ function setCell_(bookId, tab, key, cid, value) {
   if (c < 0) throw new Error('大会の列がありません: ' + cid);
   sh.getRange(r + 1, c + 1).setValue(value);
   return { row: r + 1, col: c + 1 };
+}
+
+/** 大会定義シートから大会の列を消す（「大会」は 1 行目の id ごと、「大会_en」は 2 行目以降の値だけ。型は残す） */
+function clearColumn_(bookId, cid) {
+  const ss = SpreadsheetApp.openById(bookId); const out = {};
+  ['大会', '大会_en'].forEach(name => {
+    const sh = ss.getSheetByName(name); if (!sh) return;
+    const head = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0];
+    const c = head.findIndex(x => String(x).trim() === cid);
+    if (c < 0) { out[name] = 'なし'; return; }
+    const first = (name === '大会') ? 1 : 2;
+    sh.getRange(first, c + 1, sh.getMaxRows() - first + 1, 1).clearContent();
+    out[name] = '列 ' + (c + 1) + ' を消去';
+  });
+  return out;
 }
