@@ -129,7 +129,7 @@ def keep_custom_rows(rows, grid, col_ids):
         g = list(g) + [""] * len(hdr)
         key = str(g[1]).strip()
         if not key or key in known or key == "extra.": continue
-        if re.match(r"^rounds\[\d+\]\.tracks$", key): continue          # 廃止した行（実施トラック）
+        if key.startswith("rounds["): continue                            # 回・日程の行は雛形が決める（廃止した行を持ち込まない）
         row = R(str(g[0]).lstrip("　").lstrip("＊"), key, str(g[2]), required=str(g[0]).find("＊") >= 0, indent=1, use=str(g[3]))
         row["values"] = {cid: g[hdr.index(cid)] for cid in col_ids if cid in hdr}
         rows.append(row); known.add(key)
