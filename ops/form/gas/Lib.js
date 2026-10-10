@@ -136,6 +136,7 @@ function upsertGrid(spec) {
   ['ルール', 'トラック_en', 'トラック', '大会_en', '大会'].forEach(n => { const sh = ss.getSheetByName(n); if (sh) { ss.setActiveSheet(sh); ss.moveActiveSheet(1); } });
   const def = ss.getSheetByName('シート1') || ss.getSheetByName('Sheet1');
   if (def && ss.getSheets().length > 1) ss.deleteSheet(def);
+  if (spec.rename && ss.getName() !== spec.rename) ss.rename(spec.rename);
   (spec.drop_tabs || []).forEach(n => { const s = ss.getSheetByName(n); if (s && ss.getSheets().length > 1) ss.deleteSheet(s); });
   (spec.share_with || []).forEach(addr => { try { ss.addViewer(addr); } catch (e) {} });
   if (spec.public) { try { DriveApp.getFileById(ss.getId()).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {} }
