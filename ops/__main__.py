@@ -4,6 +4,7 @@ from .form import cli as form_cli
 from .sync import cli as sync_cli
 from .server import cli as server_cli
 from .results import cli as results_cli
+from .contest import cli as contest_cli
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="ops", description="人狼知能コンテスト 運営ツール")
@@ -12,6 +13,7 @@ def main(argv=None):
     sync_cli.add_parser(sub)
     server_cli.add_parser(sub)
     results_cli.add_parser(sub)
+    contest_cli.add_parser(sub)
     a = ap.parse_args(argv)
     return a.func(a)
 

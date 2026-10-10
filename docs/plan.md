@@ -4,7 +4,7 @@
 
 | 工程 | いまの形 | 人がやること | 状態 |
 |---|---|---|---|
-| 大会の定義 | contests の `contest.yaml`（前回をコピーして直す） | 日程・トラック・会場を書く | 動作確認済み |
+| 大会の定義 | `ops contest new`（Google スプレッドシートの定義シート。値 / キー / 説明）→ `ops contest import` で `contest.yaml` | シートの A 列を埋める | 動作確認済み（往復で一致） |
 | 参加フォーム | `ops form create <id>`（Apps Script を生成・push・ウェブアプリ経由で実行） | 定番外の質問を `form.yaml` に足す／確認 | 動作確認済み（2 大会で試作） |
 | 登録の取り込み | `ops sync <id>`（回答シート → 公開 `teams.yaml`、担当者へ DM） | Slack の招待を送る | 動作確認済み |
 | サイトの大会ページ | `scripts/contest/new.py`（前回のページを複製）＋ショートコード＋ `check.py` | 文章を書く、TODO を埋める | 動作確認済み（2 大会を削除→再作成で検証） |

@@ -64,3 +64,41 @@ function doGet(e) {
   } catch (err) { out = { ok: false, error: String(err) }; }
   return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
 }
+
+/** POST 版の実行口（本文が長いもの用）。body: {fn, ...} */
+function doPost(e) {
+  let out;
+  try {
+    const p = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    if (p.fn === 'createSheet') out = { ok: true, result: createDefinitionSheet(p.spec) };
+    else out = { ok: false, error: 'unknown fn' };
+  } catch (err) { out = { ok: false, error: String(err && err.stack || err) }; }
+  return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+}
+
+/** 大会定義シート。spec: {title, share_with:[], tabs:[{name, header:[], rows:[[]], widths:[], validations:[{col,row?,type,values?}], bg:[{row,col,color}], protect:'B:C'}]} */
+function createDefinitionSheet(spec) {
+  const ss = SpreadsheetApp.create(spec.title);
+  const first = ss.getSheets()[0];
+  spec.tabs.forEach((tab, i) => {
+    const sh = i === 0 ? first.setName(tab.name) : ss.insertSheet(tab.name);
+    const ncol = tab.header.length;
+    sh.getRange(1, 1, 1, ncol).setValues([tab.header]).setFontWeight('bold').setBackground('#e8eaed');
+    if (tab.rows && tab.rows.length) sh.getRange(2, 1, tab.rows.length, ncol).setValues(tab.rows);
+    sh.setFrozenRows(1);
+    (tab.widths || []).forEach((w, j) => { if (w) sh.setColumnWidth(j + 1, w); });
+    sh.getRange(1, 1, Math.max(tab.rows.length + 50, 60), ncol).setWrap(true).setVerticalAlignment('top');
+    (tab.validations || []).forEach(v => {
+      const range = v.row ? sh.getRange(v.row, v.col) : sh.getRange(2, v.col, 200, 1);
+      let rule = null;
+      if (v.type === 'list') rule = SpreadsheetApp.newDataValidation().requireValueInList(v.values, true).setAllowInvalid(false).build();
+      else if (v.type === 'date') rule = SpreadsheetApp.newDataValidation().requireDate().setAllowInvalid(true).setHelpText('日付を入力（例 2027-07-04）').build();
+      else if (v.type === 'checkbox') rule = SpreadsheetApp.newDataValidation().requireCheckbox().build();
+      if (rule) range.setDataValidation(rule);
+    });
+    (tab.bg || []).forEach(b => sh.getRange(b.row, b.col).setBackground(b.color));
+    if (tab.protect) { const pr = sh.getRange(tab.protect).protect(); pr.setWarningOnly(true); pr.setDescription('キーと説明は変えない（値の列に入力）'); }
+  });
+  (spec.share_with || []).forEach(addr => { try { ss.addViewer(addr); } catch (e) { Logger.log('share failed: ' + addr + ' ' + e); } });
+  return { sheet_id: ss.getId(), sheet_url: ss.getUrl() };
+}

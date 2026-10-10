@@ -6,6 +6,7 @@
 
 ```
 ops/                 入口。 python -m ops <コマンド>
+  contest/           大会定義シート（値 / キー / 説明 の表）の生成と、シート → contest.yaml
   form/              参加登録フォームの生成（Apps Script を生成して clasp で push・ウェブアプリ経由で実行）
   sync/              回答シート → contests の teams.yaml、担当者へ Slack DM
   server/            大会サーバの設定一式（雛形は templates/、対戦組合せのスクリプトは scripts/）
@@ -20,6 +21,9 @@ docs/                運営向けの手順
 
 ```bash
 uv sync                                        # 依存の導入（pyyaml のみ）
+uv run python -m ops contest new inlg_2027 --from inlg_2026   # 大会定義シート（Google スプレッドシート）を作る。前回の値入り、日付は空
+uv run python -m ops contest import inlg_2027                  # シートの A 列を埋めたら、contests の contest.yaml に変換（差分を見せて確認）
+
 uv run python -m ops form create inlg_2027 --dry-run   # 生成される質問と Apps Script を見るだけ
 uv run python -m ops form create inlg_2027             # フォームと回答シートを作り、URL を contests に書き戻す
 uv run python -m ops form create inlg_2027 --test      # タイトルに [test] を付けて試し作成
