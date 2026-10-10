@@ -115,3 +115,11 @@ function upsertDefinitionTabs(spec) {
   (spec.share_with || []).forEach(addr => { try { ss.addViewer(addr); } catch (e) {} });
   return { book_id: ss.getId(), book_url: ss.getUrl(), tabs: spec.tabs.map(t => t.name) };
 }
+
+/** エディタで一度だけ実行する: 必要な権限（フォーム・スプレッドシート・ドライブ）の承認画面を出すためだけの関数 */
+function authorize() {
+  const n = DriveApp.getRootFolder().getName();
+  const s = SpreadsheetApp.create('ops-authorize-check'); DriveApp.getFileById(s.getId()).setTrashed(true);
+  Logger.log('ok: drive=' + n);
+  return 'ok';
+}
