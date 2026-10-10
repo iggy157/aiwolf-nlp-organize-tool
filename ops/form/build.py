@@ -20,11 +20,15 @@ def _choice(ja: str, en_: str | None, en: bool) -> str:
     if en and en_: return f"{en_} ({ja})" if ja else en_
     return ja or en_
 
+# form.yaml に title が無ければこれを使う。{name} / {name_en} は contest.yaml（大会定義シート）の大会名
+DEFAULT_TITLE = {"ja": "人狼知能コンテスト {name}（自然言語部門） 参加登録フォーム", "en": "AIWolfDial {name_en} Registration Form"}
+
 def build_spec(cid: str, contest: dict, form_def: dict, share_with: list[str] | None = None) -> dict:
     en = (contest.get("language") == "en")
     common = {q["id"]: q for q in yaml.safe_load(COMMON.read_text(encoding="utf-8"))["questions"]}
-    title = form_def["title"]
+    title = form_def.get("title") or DEFAULT_TITLE
     title = (title.get("en") if en else title.get("ja")) or title.get("ja") or title.get("en")
+    title = title.format_map({"name": contest.get("name", cid), "name_en": contest.get("name_en") or contest.get("name", cid)})
     questions = []
     for q in form_def["questions"]:
         q = dict(common[q]) if isinstance(q, str) else dict(q)

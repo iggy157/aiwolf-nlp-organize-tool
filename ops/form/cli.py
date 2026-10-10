@@ -13,7 +13,8 @@ def add_parser(sub):
     s = p.add_subparsers(dest="cmd", required=True)
     a = s.add_parser("init", help="前回大会の form.yaml をコピーして contests/<id>/form.yaml を作る")
     a.add_argument("id"); a.add_argument("--from", dest="prev", required=True); a.set_defaults(func=cmd_init)
-    c = s.add_parser("create", help="フォームと回答シートを作り、URL を contests の contest.yaml に書き戻す")
+    r = s.add_parser("rename", help="作ったフォームと回答シートの名前を、今の大会名から付け直す"); r.add_argument("id"); r.set_defaults(func=cmd_rename)
+    c = s.add_parser("create", help="フォームと回答シートを作り、URL を大会定義シートに書く")
     c.add_argument("id")
     c.add_argument("--dry-run", action="store_true", help="Google に触らず、質問一覧と生成コードを表示する")
     c.add_argument("--manual", action="store_true", help="clasp run を使わず、push だけして手動実行の案内を出す")
@@ -28,7 +29,10 @@ def cmd_init(a):
     if not src.exists(): sys.exit(f"前回の form.yaml がありません: {src}")
     dst = ops_contest_dir(a.id) / "form.yaml"
     if dst.exists(): sys.exit(f"既にあります: {dst}")
-    shutil.copy(src, dst); print(f"作成: {dst}\nタイトルと質問の並びを直してから `ops form create {a.id} --dry-run` で確認してください。")
+    d = yaml.safe_load(src.read_text(encoding="utf-8")); d.pop("title", None)      # タイトルは大会名から作る（前回の大会名を引き継がない）
+    dst.write_text("# 参加登録フォームの定義。title を書かなければ大会名から「人狼知能コンテスト <大会名>（自然言語部門） 参加登録フォーム」になる\n"
+                   + yaml.safe_dump(d, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    print(f"作成: {dst}\n質問の並びを確認してから `ops form create {a.id} --dry-run` で確認してください。")
 
 CONFIG = OPS / "ops/config.yaml"   # 共有の Apps Script プロジェクト ID など（コミットする）
 
@@ -91,6 +95,18 @@ def _write_back(cid: str, result: dict):
     print(f"  大会定義シート（列 {cid}）の「参加フォーム URL」: {result['form_url']}")
     print(f"  ops contests/{cid}/ops.yaml  sheet_id / form_edit_url / sheet_url（回答シート。非公開）")
     print("サイトに出すには、シートのメニュー「大会データ → 大会データを更新」を押してください。")
+
+def cmd_rename(a):
+    """作ったフォームと回答シートの名前を、今の form.yaml / contest.yaml から付け直す"""
+    from .. import gitops
+    gitops.pull()
+    p = ops_contest_dir(a.id) / "ops.yaml"
+    o = yaml.safe_load(p.read_text(encoding="utf-8")) if p.exists() else {}
+    if not o.get("form_id"): sys.exit(f"{a.id} のフォームはまだ作られていません")
+    fy = yaml.safe_load((ops_contest_dir(a.id) / "form.yaml").read_text(encoding="utf-8"))
+    title = build_spec(a.id, load_contest(a.id), fy)["title"]
+    _call_webapp("retitle", form_id=o["form_id"], sheet_id=o.get("sheet_id", ""), title=title)
+    print(f"名前を付け直しました: {title}")
 
 def cmd_create(a):
     cid = a.id
