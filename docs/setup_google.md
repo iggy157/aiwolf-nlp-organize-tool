@@ -7,22 +7,13 @@
 
 https://script.google.com/home/usersettings で「Google Apps Script API」をオン。
 
-## 2. clasp を入れてログインする
+## 2. clasp を入れる
 
 ```bash
 npm install -g @google/clasp
-clasp login --no-localhost
 ```
 
-- 表示された URL をブラウザで開き、kanolab.share で承認する。
-- **承認後、ブラウザは `http://localhost:8888/?state=…&code=…` へ飛んで「アクセスできません」になる。これで正常。**
-  SSH 先（freccia など）で clasp を動かしている場合、この `localhost` は手元の PC を指すので clasp には届かない。
-  ブラウザのアドレスバーの URL 全体をコピーして、ターミナルの `paste it here:` に貼る。
-  同意画面が「固まった」ように見えるのも、この転送待ちである（F12 の Network に `localhost:8888` が pending で出る）。
-- 代わりに VS Code のポート転送（8888）か `ssh -L 8888:localhost:8888 freccia` を張っておけば、`--no-localhost` 無しで自動的に完了する。
-- 成功すると `~/.clasprc.json` ができる（権限 600 にしておく）。これは Google 製の審査済みクライアントでのログインなので、トークンは 7 日で切れない。
-
-これで `clasp push`（コードの送信）はできる。実行まで行うには 3 節が要る。
+ログインは 3 節の `--creds` 付きの 1 回だけ行う（`--creds` なしのログインは要らない。保存される鍵は 1 つで、後のログインで上書きされる）。
 
 ## 3. スクリプトの実行口（ウェブアプリ）を用意する
 
@@ -33,8 +24,10 @@ clasp login --no-localhost
 1. Google Cloud でプロジェクトを作り（例: aiwolf）、「OAuth 同意画面」を User Type「外部」、公開ステータス「テスト」のまま、
    テストユーザーに kanolab.share を追加。本番環境への切り替えは不要（ホームページ URL と承認済みドメインの所有確認を求められ、通らない）。
 2. 「認証情報」→「OAuth クライアント ID」→ 種類「デスクトップ アプリ」→ JSON をダウンロードし `~/.ops/clasp_client_secret.json`（600）に置く。
-3. `clasp login --no-localhost --creds ~/.ops/clasp_client_secret.json`（2 節と同じ要領で URL を貼る）。
-   同意画面が「テスト」なのでトークンは 7 日で失効する。`ops form create` は実行前に更新を試み、失効していればこのコマンドを案内して止まる。
+3. `clasp login --creds ~/.ops/clasp_client_secret.json` でログインする（どのディレクトリで実行してもよい。鍵は `~/.clasprc.json` に保存される）。
+   - VS Code の Remote-SSH で入っているなら、表示された URL を開いて「許可」を押すだけで終わる（VS Code が 8888 番を手元に転送する。自動で転送されないときは「ポート」タブで 8888 を足す）。
+   - 転送が効かないときは `--no-localhost` を付けて実行する。許可したあとブラウザが `http://localhost:8888/?…&code=…` に飛んで「アクセスできません」になるので、その URL 全体をターミナルに貼る（アドレスバーに出ないときは F12 の Network で `localhost:8888` の行を見る）。
+   - 同意画面が「テスト」なのでトークンは発行から 7 日で失効する。`ops form create` などは実行前に更新を試み、失効していればこのコマンドを案内して止まる。マシンごとに別の鍵なので、別のマシンでログインしても他のマシンの鍵は切れない。
 4. 初回だけ、スクリプトをエディタで開いて何か 1 つ関数（`ping`）を実行し、権限を承認する。
    `https://script.google.com/d/<ops/config.yaml の form_script_id>/edit` → 関数 `ping` → 実行 → 承認。
 5. `ops/form/gas` で `clasp deploy -d webapp` を実行し、出てきたデプロイ ID を `ops/config.yaml` の `form_webapp_deployment` に書く。
