@@ -1,7 +1,7 @@
 /**
  * 大会定義シートに紐づくスクリプト（ops contest button が生成して push する。直接編集しない）。
- * メニュー「大会データ → 大会データを更新」で、GitHub の __REPO__ の Actions（import-sheet.yml）を起動し、
- * シートの内容を contest.yaml に書いて push させる。結果（変更・警告）をダイアログで表示する。
+ * メニュー「大会データ → 大会データを更新」で、シートの中身を圧縮して GitHub の __REPO__ の Actions（import-sheet.yml）に渡し、
+ * contest.yaml に書いて push させる。シートは非公開のままでよい。結果（変更・警告）をダイアログで表示する。
  * GitHub のトークンは押す人ごとに保存する（ユーザープロパティ。他の人からは見えない）。
  */
 const REPO = '__REPO__';
@@ -51,13 +51,19 @@ function updateData() {
   let tok = PropertiesService.getUserProperties().getProperty('GITHUB_TOKEN') || setToken();
   if (!tok) return;
   SpreadsheetApp.flush();
-  const gids = {};
-  ss.getSheets().forEach(s => { gids[s.getName()] = s.getSheetId(); });
+  // シートの中身をそのまま渡す（Actions はシートを読みに行かないので、シートを非公開にできる）
+  const gids = {}, grids = {};
+  ss.getSheets().forEach(s => {
+    gids[s.getName()] = s.getSheetId();
+    if (['大会', '大会_en', 'トラック', 'トラック_en', 'ルール'].indexOf(s.getName()) >= 0) grids[s.getName()] = s.getDataRange().getDisplayValues();
+  });
+  const payload = Utilities.base64Encode(Utilities.gzip(Utilities.newBlob(JSON.stringify(grids), 'application/json')).getBytes());
+  if (payload.length > 60000) { ui.alert('シートの中身が大きすぎて送れません（' + payload.length + ' 文字）。管理者に連絡してください。'); return; }
   let actor = '';
   try { actor = Session.getActiveUser().getEmail(); } catch (e) {}
   const started = Date.now();
   const d = gh_('post', '/repos/' + REPO + '/actions/workflows/' + WORKFLOW + '/dispatches', tok,
-    { ref: REF, inputs: { book_id: ss.getId(), gids: JSON.stringify(gids), actor: actor } });
+    { ref: REF, inputs: { book_id: ss.getId(), gids: JSON.stringify(gids), payload: payload, actor: actor } });
   if (d.code !== 204) {
     const hint = (d.code === 401 || d.code === 403 || d.code === 404) ? '\n\nトークンが無効か、権限（Actions: Read and write）が足りません。メニューの「GitHub のトークンを設定」でやり直してください。' : '';
     ui.alert('更新を始められませんでした（' + d.code + '）\n' + JSON.stringify(d.json).slice(0, 300) + hint);

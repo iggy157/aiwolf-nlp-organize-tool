@@ -68,7 +68,7 @@ def cmd_layout(a):
     share = []
     sa = load_secrets().get("GOOGLE_SERVICE_ACCOUNT_JSON")
     if sa and Path(sa).exists(): share.append(json.loads(Path(sa).read_text())["client_email"])
-    res = _post_webapp({"fn": "upsertGrid", "spec": {"book_id": book, "title": "大会定義", "tabs": tabs, "share_with": share, "public": True}})
+    res = _post_webapp({"fn": "upsertGrid", "spec": {"book_id": book, "title": "大会定義", "tabs": tabs, "share_with": share, "public": False}})
     if not book:
         _save_book(res["book_id"], res["book_url"])
         print(f"新しいシートを作りました（contest-data の sheet.yaml に書きました。commit して push してください）")

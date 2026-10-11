@@ -63,6 +63,7 @@ function doGet(e) {
     else if (p.fn === 'retitle') { FormApp.openById(p.form_id).setTitle(p.title); DriveApp.getFileById(p.form_id).setName(p.title); if (p.sheet_id) SpreadsheetApp.openById(p.sheet_id).rename(p.title + ' (回答)'); out = { ok: true, result: { title: p.title } }; }
     else if (p.fn === 'clearColumn') out = { ok: true, result: clearColumn_(p.book_id, p.cid) };
     else if (p.fn === 'trash') { const f = DriveApp.getFileById(p.file_id); const n = f.getName(); f.setTrashed(true); out = { ok: true, result: { trashed: n } }; }
+    else if (p.fn === 'sharePrivate') { DriveApp.getFileById(p.file_id).setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE); out = { ok: true, result: { public: false } }; }
     else if (p.fn === 'sharePublic') { DriveApp.getFileById(p.file_id).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); out = { ok: true, result: { public: true } }; }
     else if (p.fn === 'share') { SpreadsheetApp.openById(p.file_id).addViewer(p.email); out = { ok: true, result: { shared: p.email } }; }
     else out = { ok: false, error: 'unknown fn' };
